@@ -1,0 +1,178 @@
+from datetime import datetime, date
+
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Float,
+    Text,
+)
+
+from sqlalchemy.orm import relationship
+
+from database.database import Base
+
+
+class Application(Base):
+    __tablename__ = "applications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), unique=True, nullable=False)
+    vendor = Column(String(255))
+    category = Column(String(100))
+    owner = Column(String(255))
+    environment = Column(String(100))
+    status = Column(String(50), default="Active")
+    last_sync = Column(DateTime)
+
+    licenses = relationship(
+        "License",
+        back_populates="application",
+        cascade="all, delete-orphan"
+    )
+
+
+class License(Base):
+    __tablename__ = "licenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    application_id = Column(
+        Integer,
+        ForeignKey("applications.id"),
+        nullable=False
+    )
+
+    product = Column(String(255))
+    license_type = Column(String(100))
+
+    purchased_qty = Column(Integer)
+    assigned_qty = Column(Integer)
+    available_qty = Column(Integer)
+    used_qty = Column(Integer)
+
+    cost = Column(Float)
+    currency = Column(String(20))
+    billing_cycle = Column(String(50))
+
+    renewal_date = Column(Date)
+
+    data_source = Column(String(255))
+    last_updated = Column(DateTime, default=datetime.utcnow)
+
+    application = relationship(
+        "Application",
+        back_populates="licenses"
+    )
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    application_id = Column(
+        Integer,
+        ForeignKey("applications.id")
+    )
+
+    external_user_id = Column(String(255))
+    name = Column(String(255))
+    email = Column(String(255))
+    status = Column(String(50))
+    role = Column(String(100))
+
+    last_activity = Column(DateTime)
+
+
+class LicenseAssignment(Base):
+    __tablename__ = "license_assignments"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    license_id = Column(
+        Integer,
+        ForeignKey("licenses.id")
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id")
+    )
+
+    assigned_date = Column(DateTime)
+    status = Column(String(50))
+
+
+class Usage(Base):
+    __tablename__ = "usage"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    application_id = Column(
+        Integer,
+        ForeignKey("applications.id")
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id")
+    )
+
+    last_activity = Column(DateTime)
+    usage_status = Column(String(50))
+    usage_count = Column(Integer)
+
+    last_updated = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+
+class Contract(Base):
+    __tablename__ = "contracts"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    application_id = Column(
+        Integer,
+        ForeignKey("applications.id")
+    )
+
+    contract_id = Column(String(255))
+    vendor = Column(String(255))
+
+    purchased_qty = Column(Integer)
+
+    cost = Column(Float)
+    currency = Column(String(20))
+
+    renewal_date = Column(Date)
+
+    source_document = Column(Text)
+
+
+class SyncLog(Base):
+    __tablename__ = "sync_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    application_id = Column(
+        Integer,
+        ForeignKey("applications.id")
+    )
+
+    sync_time = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    status = Column(String(50))
+
+    records_processed = Column(Integer)
+
+    error_message = Column(Text)
