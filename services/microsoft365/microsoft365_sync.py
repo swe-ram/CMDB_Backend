@@ -6,6 +6,7 @@ from typing import Any
 from database.database import SessionLocal
 from database.microsoft365_repository import (
     save_microsoft365_application,
+    save_microsoft365_data,
     save_microsoft365_licenses,
     save_microsoft365_license_assignments,
     save_microsoft365_sync_log,
@@ -25,6 +26,10 @@ def sync_microsoft365_inventory() -> dict[str, Any]:
         user_payload = get_microsoft365_user_inventory()
 
         license_result = save_microsoft365_licenses(
+            license_payload.get("licenses", []),
+            application=application,
+        )
+        vendor_result = save_microsoft365_data(
             license_payload.get("licenses", []),
             application=application,
         )
@@ -119,6 +124,7 @@ def sync_microsoft365_inventory() -> dict[str, Any]:
 
             total_processed = (
                 int(license_result.get("total", 0))
+                + int(vendor_result.get("total", 0))
                 + int(user_result.get("total", 0))
                 + int(assignment_result.get("total", 0))
             )
@@ -134,6 +140,7 @@ def sync_microsoft365_inventory() -> dict[str, Any]:
                 "success": True,
                 "application": "Microsoft 365",
                 "licenses_processed": int(license_result.get("total", 0)),
+                "microsoft365_data_processed": int(vendor_result.get("total", 0)),
                 "users_processed": int(user_result.get("total", 0)),
                 "assignments_processed": int(assignment_result.get("total", 0)),
                 "sync_status": "completed",

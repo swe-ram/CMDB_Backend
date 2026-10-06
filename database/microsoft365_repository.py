@@ -5,7 +5,14 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from database.database import SessionLocal
-from database.models import Application, License, LicenseAssignment, SyncLog, User
+from database.models import (
+    Application,
+    License,
+    LicenseAssignment,
+    Microsoft365Data,
+    SyncLog,
+    User,
+)
 
 
 def save_microsoft365_application() -> Application:
@@ -246,6 +253,72 @@ def save_microsoft365_license_assignments(
         db.close()
 
 
+def save_microsoft365_data(
+    records: list[dict],
+    application: Application | None = None,
+) -> dict:
+    db: Session = SessionLocal()
+    try:
+        application_record = application or save_microsoft365_application()
+        inserted = 0
+        updated = 0
+
+        for item in records:
+            sku_id = item.get("sku_id")
+            if not sku_id:
+                continue
+
+            existing_record = (
+                db.query(Microsoft365Data)
+                .filter(
+                    Microsoft365Data.application_id == application_record.id,
+                    Microsoft365Data.sku_id == sku_id,
+                )
+                .first()
+            )
+
+            if existing_record is not None:
+                existing_record.product = item.get("product") or item.get("sku_part_number")
+                existing_record.sku_part_number = item.get("sku_part_number")
+                existing_record.license_type = item.get("license_type") or item.get("sku_part_number") or "Microsoft 365"
+                existing_record.purchased_quantity = int(item.get("purchased_quantity") or 0)
+                existing_record.assigned_quantity = int(item.get("assigned_quantity") or 0)
+                existing_record.available_quantity = int(item.get("available_quantity") or 0)
+                existing_record.consumed_quantity = int(item.get("assigned_quantity") or 0)
+                existing_record.synced_at = datetime.utcnow()
+                existing_record.updated_at = datetime.utcnow()
+                updated += 1
+            else:
+                new_record = Microsoft365Data(
+                    application_id=application_record.id,
+                    sku_id=sku_id,
+                    product=item.get("product") or item.get("sku_part_number") or "Microsoft 365",
+                    sku_part_number=item.get("sku_part_number"),
+                    license_type=item.get("license_type") or item.get("sku_part_number") or "Microsoft 365",
+                    purchased_quantity=int(item.get("purchased_quantity") or 0),
+                    assigned_quantity=int(item.get("assigned_quantity") or 0),
+                    available_quantity=int(item.get("available_quantity") or 0),
+                    consumed_quantity=int(item.get("assigned_quantity") or 0),
+                    synced_at=datetime.utcnow(),
+                )
+                db.add(new_record)
+                inserted += 1
+
+        db.commit()
+        return {
+            "success": True,
+            "application": "Microsoft 365",
+            "inserted": inserted,
+            "updated": updated,
+            "total": inserted + updated,
+        }
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
 def save_microsoft365_inventory(
     license_payload: dict,
     user_payload: dict,
@@ -259,11 +332,16 @@ def save_microsoft365_inventory(
         user_payload.get("users", []),
         application=application,
     )
+    vendor_result = save_microsoft365_data(
+        license_payload.get("licenses", []),
+        application=application,
+    )
     return {
         "success": True,
         "application": "Microsoft 365",
         "licenses_processed": license_result.get("total", 0),
         "users_processed": user_result.get("total", 0),
+        "vendor_data_processed": vendor_result.get("total", 0),
     }
 
 

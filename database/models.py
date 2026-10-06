@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Float,
     Text,
+    UniqueConstraint,
 )
 
 from sqlalchemy.orm import relationship
@@ -106,6 +107,86 @@ class LicenseAssignment(Base):
 
     assigned_date = Column(DateTime)
     status = Column(String(50))
+
+
+class Microsoft365Data(Base):
+    __tablename__ = "microsoft365_data"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "application_id",
+            "sku_id",
+            name="uq_microsoft365_data_application_sku",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    application_id = Column(
+        Integer,
+        ForeignKey("applications.id"),
+        nullable=False,
+        index=True,
+    )
+    sku_id = Column(String(255), nullable=False)
+    product = Column(String(255))
+    sku_part_number = Column(String(255))
+    license_type = Column(String(255))
+    purchased_quantity = Column(Integer)
+    assigned_quantity = Column(Integer)
+    available_quantity = Column(Integer)
+    consumed_quantity = Column(Integer)
+    synced_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    application = relationship("Application")
+
+
+class SlackData(Base):
+    __tablename__ = "slack_data"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "application_id",
+            "plan",
+            "license_type",
+            name="uq_slack_data_application_plan_type",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    application_id = Column(
+        Integer,
+        ForeignKey("applications.id"),
+        nullable=False,
+        index=True,
+    )
+    plan = Column(String(255))
+    license_type = Column(String(255))
+    purchased_quantity = Column(Integer)
+    entitled_quantity = Column(Integer)
+    assigned_quantity = Column(Integer)
+    available_quantity = Column(Integer)
+    active_users = Column(Integer)
+    inactive_users = Column(Integer)
+    renewal_date = Column(Date)
+    cost = Column(Float)
+    currency = Column(String(20))
+    billing_cycle = Column(String(50))
+    data_source = Column(String(255))
+    synced_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    application = relationship("Application")
 
 
 class Usage(Base):
