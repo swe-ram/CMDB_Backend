@@ -109,6 +109,49 @@ class LicenseAssignment(Base):
     status = Column(String(50))
 
 
+class LicenseAssignedUser(Base):
+    __tablename__ = "license_assigned_users"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "license_id",
+            "user_id",
+            name="uq_license_assigned_users_license_user",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    application_id = Column(
+        Integer,
+        ForeignKey("applications.id"),
+        nullable=False,
+        index=True,
+    )
+    license_id = Column(
+        Integer,
+        ForeignKey("licenses.id"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )
+    sku_id = Column(String(255))
+    display_name = Column(String(255))
+    email = Column(String(255))
+    external_user_id = Column(String(255))
+    status = Column(String(50), default="assigned")
+    assigned_at = Column(DateTime, default=datetime.utcnow)
+    last_synced_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    application = relationship("Application")
+    license = relationship("License")
+    user = relationship("User")
+
+
 class Microsoft365Data(Base):
     __tablename__ = "microsoft365_data"
 

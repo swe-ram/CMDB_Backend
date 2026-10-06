@@ -3,9 +3,13 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
+from database.microsoft365_assigned_users_repository import (
+    get_all_assigned_users_by_license,
+    get_assigned_users_by_license,
+)
 from services.microsoft365.microsoft365_client import MicrosoftGraphClient, MicrosoftGraphError
 from services.microsoft365.microsoft365_license import get_microsoft365_license_inventory
 from services.microsoft365.microsoft365_sync import sync_microsoft365_inventory
@@ -174,6 +178,34 @@ async def sync() -> dict[str, Any]:
                 "error": str(exc),
             },
         )
+
+
+@router.get(
+    "/licenses/assigned-users",
+    summary="List stored assigned users grouped by Microsoft 365 license",
+)
+async def all_assigned_users() -> dict[str, Any]:
+    try:
+        return get_all_assigned_users_by_license()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get(
+    "/licenses/{license_id}/assigned-users",
+    summary="List currently assigned users for a Microsoft 365 license",
+)
+async def assigned_users_for_license(license_id: int) -> dict[str, Any]:
+    try:
+        users = get_assigned_users_by_license(license_id)
+        return {
+            "application": "Microsoft 365",
+            "license_id": license_id,
+            "total_users": len(users),
+            "users": users,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get(

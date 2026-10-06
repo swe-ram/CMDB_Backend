@@ -206,3 +206,24 @@ This project intentionally does not fabricate Slack user counts, billing quantit
 - `/slack/inventory` returns the combined normalized payload
 - `/slack/optimization` returns recommended optimization actions
 
+## Microsoft 365 assigned-user inventory
+
+The Microsoft 365 sync stores Graph `assignedLicenses` relationships in
+`license_assigned_users`. Run the schema/table setup once, then trigger the
+existing sync:
+
+```powershell
+.\.venv\Scripts\python.exe .\create_tables.py
+Invoke-RestMethod -Method Post -Uri "http://localhost:8000/microsoft365/sync"
+```
+
+The stored assignments can be read without calling Microsoft Graph:
+
+```text
+GET /microsoft365/licenses/assigned-users
+```
+
+The response groups currently assigned users by Microsoft 365 license and
+includes licenses with no current assignments. Previously assigned users are
+retained with `status = "revoked"` in the database but omitted from the active
+user lists.
