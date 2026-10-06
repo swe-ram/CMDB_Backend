@@ -41,21 +41,29 @@ def list_slack_users(client: SlackClient) -> dict[str, Any]:
         return {
             "application": "Slack",
             "data_available": False,
+            "total_users": 0,
+            "active_users": 0,
+            "deleted_users": 0,
+            "bot_users": 0,
+            "users_with_email": 0,
+            "users": [],
             "error": "No Slack token configured for users.",
             "required_scopes": [
                 "users:read",
                 "users:read.email",
             ],
-            "users": [],
         }
 
     try:
+        # Slack pagination may return None.
+        # Convert None to an empty list so the code below
+        # can safely iterate over the result.
         members = client.paginate(
             "users.list",
             response_key="members",
             params={"limit": 200},
             token=token,
-        )
+        ) or []
 
     except Exception as exc:
 
@@ -67,6 +75,8 @@ def list_slack_users(client: SlackClient) -> dict[str, Any]:
             "total_users": 0,
             "active_users": 0,
             "deleted_users": 0,
+            "bot_users": 0,
+            "users_with_email": 0,
             "users": [],
             "error": error_text,
             "required_scopes": [
@@ -79,29 +89,35 @@ def list_slack_users(client: SlackClient) -> dict[str, Any]:
             ),
         }
 
+    # Normalize Slack API users
     normalized = [
         normalize_slack_user(member)
         for member in members
+        if isinstance(member, dict)
     ]
 
+    # Count active users
     active_count = sum(
         1
         for item in normalized
         if item.get("status") == "active"
     )
 
+    # Count deleted users
     deleted_count = sum(
         1
         for item in normalized
         if item.get("status") == "deleted"
     )
 
+    # Count bot users
     bot_count = sum(
         1
         for item in normalized
         if item.get("status") == "bot"
     )
 
+    # Count users with email
     users_with_email = sum(
         1
         for item in normalized
@@ -131,8 +147,6 @@ def list_slack_users(client: SlackClient) -> dict[str, Any]:
         "users_with_email": users_with_email,
         "users": normalized,
         "data_source": "Slack API - users.list",
-
-        # PostgreSQL result
         "database": database_result,
     }
 
